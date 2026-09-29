@@ -11,7 +11,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup JDK
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -36,7 +36,6 @@ jobs:
                   gradlePluginPortal()
               }
           }
-
           dependencyResolutionManagement {
               repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
               repositories {
@@ -44,9 +43,8 @@ jobs:
                   mavenCentral()
               }
           }
-
           rootProject.name = "JarvisAI"
-          include(":app")
+          include ":app"
           EOF
 
           cat > build.gradle <<'EOF'
@@ -75,42 +73,32 @@ jobs:
           EOF
 
           cat > app/src/main/AndroidManifest.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
               <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-
               <application
                   android:theme="@style/AppTheme"
-                  android:label="Jarvis AI"
-                  android:allowBackup="true">
-
+                  android:label="Jarvis AI">
                   <activity
                       android:name=".MainActivity"
                       android:exported="true">
-
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN"/>
                           <category android:name="android.intent.category.LAUNCHER"/>
                       </intent-filter>
-
                   </activity>
               </application>
           </manifest>
           EOF
 
           cat > app/src/main/res/values/styles.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
           <resources>
               <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
                   <item name="android:fontFamily">sans</item>
-                  <item name="android:windowActionModeOverlay">true</item>
               </style>
           </resources>
           EOF
 
           cat > app/src/main/res/layout/activity_main.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
           <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
               android:layout_width="match_parent"
               android:layout_height="match_parent"
@@ -126,4 +114,80 @@ jobs:
                   android:textStyle="bold"/>
 
               <TextView
-                  android
+                  android:id="@+id/status"
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginTop="20dp"
+                  android:text="Ready"
+                  android:textSize="18sp"/>
+
+              <Button
+                  android:id="@+id/speakButton"
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginTop="20dp"
+                  android:text="Speak to Jarvis"/>
+          </LinearLayout>
+          EOF
+
+          cat > app/src/main/java/com/mankajithakor14/jarvis/MainActivity.java <<'EOF'
+          package com.mankajithakor14.jarvis;
+
+          import android.Manifest;
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.content.Intent;
+          import android.content.pm.PackageManager;
+          import android.speech.RecognizerIntent;
+          import android.widget.Button;
+          import android.widget.TextView;
+          import java.util.ArrayList;
+
+          public class MainActivity extends Activity {
+              TextView status;
+              static final int VOICE = 10;
+
+              @Override
+              protected void onCreate(Bundle b) {
+                  super.onCreate(b);
+                  setContentView(R.layout.activity_main);
+
+                  status = findViewById(R.id.status);
+                  Button button = findViewById(R.id.speakButton);
+
+                  if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+                          != PackageManager.PERMISSION_GRANTED) {
+                      requestPermissions(
+                          new String[]{Manifest.permission.RECORD_AUDIO}, 20);
+                  }
+
+                  button.setOnClickListener(v -> {
+                      Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                      i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "gu-IN");
+                      i.putExtra(RecognizerIntent.EXTRA_PROMPT, "Jarvis ને કહો...");
+                      startActivityForResult(i, VOICE);
+                  });
+              }
+
+              @Override
+              protected void onActivityResult(int r, int c, Intent d) {
+                  super.onActivityResult(r, c, d);
+                  if (r == VOICE && c == RESULT_OK && d != null) {
+                      ArrayList<String> x =
+                          d.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                      if (x != null && !x.isEmpty()) {
+                          status.setText(x.get(0));
+                      }
+                  }
+              }
+          }
+          EOF
+
+      - name: Build APK
+        run: gradle :app:assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jarvis-AI
+          path: app/build/outputs/apk/debug/app-debug.apk
