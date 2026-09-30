@@ -130,7 +130,7 @@ jobs:
           </LinearLayout>
           EOF
 
-          cat > app/src/main/java/com/mankajithakor14/jarvis/MainActivity.java <<'EOF'
+                    cat > app/src/main/java/com/mankajithakor14/jarvis/MainActivity.java <<'EOF'
           package com.mankajithakor14.jarvis;
 
           import android.Manifest;
@@ -139,12 +139,16 @@ jobs:
           import android.content.Intent;
           import android.content.pm.PackageManager;
           import android.speech.RecognizerIntent;
+          import android.speech.tts.TextToSpeech;
           import android.widget.Button;
           import android.widget.TextView;
           import java.util.ArrayList;
+          import java.util.Locale;
 
           public class MainActivity extends Activity {
+
               TextView status;
+              TextToSpeech tts;
               static final int VOICE = 10;
 
               @Override
@@ -155,39 +159,97 @@ jobs:
                   status = findViewById(R.id.status);
                   Button button = findViewById(R.id.speakButton);
 
+                  tts = new TextToSpeech(this, result -> {
+                      if (result == TextToSpeech.SUCCESS) {
+                          tts.setLanguage(new Locale("gu", "IN"));
+                      }
+                  });
+
                   if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
                           != PackageManager.PERMISSION_GRANTED) {
                       requestPermissions(
                           new String[]{Manifest.permission.RECORD_AUDIO}, 20);
                   }
 
-                  button.setOnClickListener(v -> {
-                      Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-                      i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "gu-IN");
-                      i.putExtra(RecognizerIntent.EXTRA_PROMPT, "Jarvis ને કહો...");
-                      startActivityForResult(i, VOICE);
-                  });
+                  button.setOnClickListener(v -> listen());
+              }
+
+              private void listen() {
+                  Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                  i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "gu-IN");
+                  i.putExtra(RecognizerIntent.EXTRA_PROMPT, "Jarvis ને કહો...");
+                  startActivityForResult(i, VOICE);
+              }
+
+              private void speak(String message) {
+                  status.setText(message);
+
+                  if (tts != null) {
+                      tts.speak(
+                          message,
+                          TextToSpeech.QUEUE_FLUSH,
+                          null,
+                          "jarvis"
+                      );
+                  }
+              }
+
+              private String reply(String command) {
+
+                  String x = command.toLowerCase(Locale.ROOT);
+
+                  if (x.contains("હેલો") ||
+                      x.contains("હાય") ||
+                      x.contains("hello") ||
+                      x.contains("hi")) {
+
+                      return "નમસ્તે. હું Jarvis છું. હું તમારી મદદ માટે તૈયાર છું.";
+                  }
+
+                  if (x.contains("કેમ છો") ||
+                      x.contains("how are you")) {
+
+                      return "હું બરાબર છું. તમે કહો, શું કરવું છે?";
+                  }
+
+                  if (x.contains("તમારું નામ") ||
+                      x.contains("નામ શું")) {
+
+                      return "મારું નામ Jarvis છે.";
+                  }
+
+                  return "મેં તમારું કહ્યું સાંભળ્યું: " + command;
               }
 
               @Override
-              protected void onActivityResult(int r, int c, Intent d) {
+              protected void onActivityResult(
+                      int r, int c, Intent d) {
+
                   super.onActivityResult(r, c, d);
-                  if (r == VOICE && c == RESULT_OK && d != null) {
+
+                  if (r == VOICE &&
+                      c == RESULT_OK &&
+                      d != null) {
+
                       ArrayList<String> x =
-                          d.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                          d.getStringArrayListExtra(
+                              RecognizerIntent.EXTRA_RESULTS);
+
                       if (x != null && !x.isEmpty()) {
-                          status.setText(x.get(0));
+                          speak(reply(x.get(0)));
                       }
                   }
               }
+
+              @Override
+              protected void onDestroy() {
+
+                  if (tts != null) {
+                      tts.stop();
+                      tts.shutdown();
+                  }
+
+                  super.onDestroy();
+              }
           }
           EOF
-
-      - name: Build APK
-        run: gradle :app:assembleDebug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Jarvis-AI
-          path: app/build/outputs/apk/debug/app-debug.apk
