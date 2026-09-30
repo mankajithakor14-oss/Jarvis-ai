@@ -253,3 +253,11 @@ jobs:
               }
           }
           EOF
+      - name: Build APK
+        run: gradle :app:assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jarvis-AI
+          path: app/build/outputs/apk/debug/app-debug.apk
