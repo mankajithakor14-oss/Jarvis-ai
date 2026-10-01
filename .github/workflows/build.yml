@@ -1,4 +1,4 @@
-name: Build Jarvis APK
+  name: Build Jarvis APK
 
 on:
   workflow_dispatch:
@@ -23,7 +23,10 @@ jobs:
           gradle-version: '8.9'
 
       - name: Create Android project
+        shell: bash
         run: |
+          set -e
+
           mkdir -p app/src/main/java/com/mankajithakor14/jarvis
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
@@ -36,6 +39,7 @@ jobs:
                   gradlePluginPortal()
               }
           }
+
           dependencyResolutionManagement {
               repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
               repositories {
@@ -43,6 +47,7 @@ jobs:
                   mavenCentral()
               }
           }
+
           rootProject.name = "JarvisAI"
           include ":app"
           EOF
@@ -74,32 +79,46 @@ jobs:
 
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
               <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
               <application
                   android:theme="@style/AppTheme"
-                  android:label="Jarvis AI">
+                  android:label="Jarvis AI"
+                  android:allowBackup="true"
+                  android:supportsRtl="true">
+
                   <activity
                       android:name=".MainActivity"
                       android:exported="true">
+
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN"/>
                           <category android:name="android.intent.category.LAUNCHER"/>
                       </intent-filter>
+
                   </activity>
+
               </application>
+
           </manifest>
           EOF
 
           cat > app/src/main/res/values/styles.xml <<'EOF'
           <resources>
-              <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+              <style name="AppTheme"
+                  parent="@android:style/Theme.Material.Light.NoActionBar">
+
                   <item name="android:fontFamily">sans</item>
+                  <item name="android:windowLightStatusBar">true</item>
+
               </style>
           </resources>
           EOF
 
           cat > app/src/main/res/layout/activity_main.xml <<'EOF'
-          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+          <LinearLayout
+              xmlns:android="http://schemas.android.com/apk/res/android"
               android:layout_width="match_parent"
               android:layout_height="match_parent"
               android:orientation="vertical"
@@ -127,10 +146,11 @@ jobs:
                   android:layout_height="wrap_content"
                   android:layout_marginTop="20dp"
                   android:text="Speak to Jarvis"/>
+
           </LinearLayout>
           EOF
 
-                    cat > app/src/main/java/com/mankajithakor14/jarvis/MainActivity.java <<'EOF'
+          cat > app/src/main/java/com/mankajithakor14/jarvis/MainActivity.java <<'EOF'
           package com.mankajithakor14.jarvis;
 
           import android.Manifest;
@@ -142,49 +162,98 @@ jobs:
           import android.speech.tts.TextToSpeech;
           import android.widget.Button;
           import android.widget.TextView;
+
           import java.util.ArrayList;
           import java.util.Locale;
 
           public class MainActivity extends Activity {
 
-              TextView status;
-              TextToSpeech tts;
-              static final int VOICE = 10;
+              private TextView status;
+              private TextToSpeech tts;
+
+              private static final int VOICE = 10;
+              private static final int RECORD_AUDIO = 20;
 
               @Override
-              protected void onCreate(Bundle b) {
-                  super.onCreate(b);
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+
                   setContentView(R.layout.activity_main);
 
                   status = findViewById(R.id.status);
                   Button button = findViewById(R.id.speakButton);
 
                   tts = new TextToSpeech(this, result -> {
+
                       if (result == TextToSpeech.SUCCESS) {
-                          tts.setLanguage(new Locale("gu", "IN"));
+
+                          int languageResult =
+                                  tts.setLanguage(new Locale("gu", "IN"));
+
+                          if (languageResult ==
+                                  TextToSpeech.LANG_MISSING_DATA ||
+                              languageResult ==
+                                  TextToSpeech.LANG_NOT_SUPPORTED) {
+
+                              status.setText(
+                                  "Gujarati voice available નથી"
+                              );
+                          }
                       }
                   });
 
-                  if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+                  if (checkSelfPermission(
+                          Manifest.permission.RECORD_AUDIO)
                           != PackageManager.PERMISSION_GRANTED) {
+
                       requestPermissions(
-                          new String[]{Manifest.permission.RECORD_AUDIO}, 20);
+                          new String[]{
+                              Manifest.permission.RECORD_AUDIO
+                          },
+                          RECORD_AUDIO
+                      );
                   }
 
                   button.setOnClickListener(v -> listen());
               }
 
               private void listen() {
-                  Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-                  i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "gu-IN");
-                  i.putExtra(RecognizerIntent.EXTRA_PROMPT, "Jarvis ને કહો...");
-                  startActivityForResult(i, VOICE);
+
+                  Intent intent =
+                          new Intent(
+                              RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+                          );
+
+                  intent.putExtra(
+                      RecognizerIntent.EXTRA_LANGUAGE,
+                      "gu-IN"
+                  );
+
+                  intent.putExtra(
+                      RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                      RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                  );
+
+                  intent.putExtra(
+                      RecognizerIntent.EXTRA_PROMPT,
+                      "Jarvis ને કહો..."
+                  );
+
+                  try {
+                      startActivityForResult(intent, VOICE);
+                  } catch (Exception e) {
+                      status.setText(
+                          "Voice recognition available નથી"
+                      );
+                  }
               }
 
               private void speak(String message) {
+
                   status.setText(message);
 
                   if (tts != null) {
+
                       tts.speak(
                           message,
                           TextToSpeech.QUEUE_FLUSH,
@@ -196,7 +265,8 @@ jobs:
 
               private String reply(String command) {
 
-                  String x = command.toLowerCase(Locale.ROOT);
+                  String x =
+                      command.toLowerCase(Locale.ROOT);
 
                   if (x.contains("હેલો") ||
                       x.contains("હાય") ||
@@ -223,20 +293,29 @@ jobs:
 
               @Override
               protected void onActivityResult(
-                      int r, int c, Intent d) {
+                      int requestCode,
+                      int resultCode,
+                      Intent data) {
 
-                  super.onActivityResult(r, c, d);
+                  super.onActivityResult(
+                      requestCode,
+                      resultCode,
+                      data
+                  );
 
-                  if (r == VOICE &&
-                      c == RESULT_OK &&
-                      d != null) {
+                  if (requestCode == VOICE &&
+                      resultCode == RESULT_OK &&
+                      data != null) {
 
-                      ArrayList<String> x =
-                          d.getStringArrayListExtra(
-                              RecognizerIntent.EXTRA_RESULTS);
+                      ArrayList<String> results =
+                          data.getStringArrayListExtra(
+                              RecognizerIntent.EXTRA_RESULTS
+                          );
 
-                      if (x != null && !x.isEmpty()) {
-                          speak(reply(x.get(0)));
+                      if (results != null &&
+                          !results.isEmpty()) {
+
+                          speak(reply(results.get(0)));
                       }
                   }
               }
@@ -253,6 +332,7 @@ jobs:
               }
           }
           EOF
+
       - name: Build APK
         run: gradle :app:assembleDebug
 
