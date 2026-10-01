@@ -1,7 +1,10 @@
-  name: Build Jarvis APK
+name: Build Jarvis APK
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
