@@ -1,4 +1,5 @@
 export default async function handler(req, res) {
+  // Only POST requests
   if (req.method !== "POST") {
     return res.status(405).json({
       error: "Only POST is allowed"
@@ -6,20 +7,28 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { message } = req.body || {};
+    // Get user message
+    const message = req.body?.message;
 
-    if (!message || !message.trim()) {
+    if (
+      typeof message !== "string" ||
+      message.trim().length === 0
+    ) {
       return res.status(400).json({
         error: "Message is required"
       });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    // Check API key
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
       return res.status(500).json({
         error: "OPENAI_API_KEY is missing in Vercel"
       });
     }
 
+    // Send message to AI
     const response = await fetch(
       "https://api.openai.com/v1/responses",
       {
@@ -27,17 +36,16 @@ export default async function handler(req, res) {
 
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+          "Authorization": `Bearer ${apiKey}`
         },
 
         body: JSON.stringify({
           model: "gpt-5",
-
           instructions:
             "તમે Jarvis નામનો વ્યક્તિગત AI assistant છો. " +
             "વપરાશકર્તા સાથે મુખ્યત્વે સરળ ગુજરાતી ભાષામાં વાત કરો. " +
-            "જવાબ ટૂંકો, સ્પષ્ટ અને મદદરૂપ આપો. " +
-            "વપરાશકર્તા ગુજરાતી બોલે તો ગુજરાતી જવાબ આપો.",
+            "વપરાશકર્તા ગુજરાતી બોલે તો ગુજરાતી જવાબ આપો. " +
+            "જવાબ ટૂંકો, સ્પષ્ટ અને મદદરૂપ આપો.",
 
           input: message,
 
@@ -48,30 +56,36 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // OpenAI તરફથી error આવે તો સાચી error Vercel logમાં દેખાશે
+    // OpenAI error
     if (!response.ok) {
-      console.error("OpenAI API Error:", JSON.stringify(data));
+      console.error(
+        "OpenAI Error:",
+        JSON.stringify(data)
+      );
 
       return res.status(502).json({
-        error: "OpenAI API error",
-        details: data
+        error: "AI service error"
       });
     }
 
+    // AI reply
     const reply =
       data.output_text ||
-      "મને જવાબ મળ્યો નથી.";
+      "મને AI તરફથી જવાબ મળ્યો નથી.";
 
     return res.status(200).json({
-      reply: reply
+      reply
     });
 
   } catch (error) {
-    console.error("Jarvis Backend Error:", error);
+
+    console.error(
+      "Jarvis Server Error:",
+      error
+    );
 
     return res.status(500).json({
-      error: "Server error",
-      details: error.message || String(error)
+      error: "Jarvis server error"
     });
   }
 }
