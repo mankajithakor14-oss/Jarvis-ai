@@ -373,14 +373,102 @@ jobs:
                                   () -> speak(reply)
                               );
 
-                          } else {
+} else {
 
-                              mainHandler.post(
-                                  () -> speak(
-                                      "Jarvis server સાથે જોડાઈ શક્યો નથી."
-                                  )
-                              );
-                          }
+    String errorBody = "";
+
+    try {
+        java.io.InputStream errorStream =
+                connection.getErrorStream();
+
+        if (errorStream != null) {
+            BufferedReader errorReader =
+                    new BufferedReader(
+                        new InputStreamReader(
+                            errorStream,
+                            StandardCharsets.UTF_8
+                        )
+                    );
+
+            StringBuilder errorResponse =
+                    new StringBuilder();
+
+            String errorLine;
+
+            while ((errorLine =
+                    errorReader.readLine()) != null) {
+                errorResponse.append(errorLine);
+            }
+
+            errorReader.close();
+            errorBody = errorResponse.toString();
+        }
+
+    } catch (Exception ignored) {
+    }
+
+    final String finalError = errorBody;
+
+    mainHandler.post(() -> {
+
+        try {
+
+            JSONObject errorJson =
+                    new JSONObject(finalError);
+
+            String details =
+                    "Unknown server error";
+
+            Object detailsObject =
+                    errorJson.opt("details");
+
+            if (detailsObject instanceof JSONObject) {
+
+                JSONObject detailsJson =
+                        (JSONObject) detailsObject;
+
+                JSONObject openAiError =
+                        detailsJson.optJSONObject("error");
+
+                if (openAiError != null) {
+
+                    details =
+                            openAiError.optString(
+                                "message",
+                                details
+                            );
+
+                } else {
+
+                    details =
+                            detailsJson.toString();
+                }
+
+            } else {
+
+                details =
+                    errorJson.optString(
+                        "error",
+                        details
+                    );
+            }
+
+            speak(
+                "Server error "
+                + responseCode
+                + ": "
+                + details
+            );
+
+        } catch (Exception parseError) {
+
+            speak(
+                "Server error "
+                + responseCode
+            );
+        }
+    });
+}
 
                       } catch (Exception e) {
 
