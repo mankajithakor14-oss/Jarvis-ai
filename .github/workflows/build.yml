@@ -52,7 +52,7 @@ jobs:
           }
 
           rootProject.name = "JarvisAI"
-          include ":app"
+          include(":app")
           EOF
 
           cat > build.gradle <<'EOF'
@@ -109,6 +109,7 @@ jobs:
 
           cat > app/src/main/res/values/styles.xml <<'EOF'
           <resources>
+
               <style name="AppTheme"
                   parent="@android:style/Theme.Material.Light.NoActionBar">
 
@@ -116,6 +117,7 @@ jobs:
                   <item name="android:windowLightStatusBar">true</item>
 
               </style>
+
           </resources>
           EOF
 
@@ -140,7 +142,7 @@ jobs:
                   android:layout_width="wrap_content"
                   android:layout_height="wrap_content"
                   android:layout_marginTop="20dp"
-                  android:text="Ready"
+                  android:text="Jarvis તૈયાર છે"
                   android:textSize="18sp"/>
 
               <Button
