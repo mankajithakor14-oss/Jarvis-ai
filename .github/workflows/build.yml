@@ -162,6 +162,8 @@ jobs:
           import android.Manifest;
           import android.app.Activity;
           import android.os.Bundle;
+          import android.os.Handler;
+          import android.os.Looper;
           import android.content.Intent;
           import android.content.pm.PackageManager;
           import android.speech.RecognizerIntent;
@@ -169,8 +171,18 @@ jobs:
           import android.widget.Button;
           import android.widget.TextView;
 
+          import org.json.JSONObject;
+
+          import java.io.BufferedReader;
+          import java.io.InputStreamReader;
+          import java.io.OutputStream;
+          import java.net.HttpURLConnection;
+          import java.net.URL;
+          import java.nio.charset.StandardCharsets;
           import java.util.ArrayList;
           import java.util.Locale;
+          import java.util.concurrent.ExecutorService;
+          import java.util.concurrent.Executors;
 
           public class MainActivity extends Activity {
 
@@ -179,6 +191,15 @@ jobs:
 
               private static final int VOICE = 10;
               private static final int RECORD_AUDIO = 20;
+
+              private static final String BACKEND_URL =
+                      "https://jarvis-ai-816k.vercel.app/api";
+
+              private final ExecutorService executor =
+                      Executors.newSingleThreadExecutor();
+
+              private final Handler mainHandler =
+                      new Handler(Looper.getMainLooper());
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -269,32 +290,113 @@ jobs:
                   }
               }
 
-              private String reply(String command) {
+              private void askJarvis(String command) {
 
-                  String x =
-                      command.toLowerCase(Locale.ROOT);
+                  status.setText("Jarvis વિચારી રહ્યું છે...");
 
-                  if (x.contains("હેલો") ||
-                      x.contains("હાય") ||
-                      x.contains("hello") ||
-                      x.contains("hi")) {
+                  executor.execute(() -> {
 
-                      return "નમસ્તે. હું Jarvis છું. હું તમારી મદદ માટે તૈયાર છું.";
-                  }
+                      HttpURLConnection connection = null;
 
-                  if (x.contains("કેમ છો") ||
-                      x.contains("how are you")) {
+                      try {
+                          URL url = new URL(BACKEND_URL);
 
-                      return "હું બરાબર છું. તમે કહો, શું કરવું છે?";
-                  }
+                          connection =
+                                  (HttpURLConnection)
+                                  url.openConnection();
 
-                  if (x.contains("તમારું નામ") ||
-                      x.contains("નામ શું")) {
+                          connection.setRequestMethod("POST");
 
-                      return "મારું નામ Jarvis છે.";
-                  }
+                          connection.setRequestProperty(
+                                  "Content-Type",
+                                  "application/json; charset=UTF-8"
+                          );
 
-                  return "મેં તમારું કહ્યું સાંભળ્યું: " + command;
+                          connection.setDoOutput(true);
+                          connection.setConnectTimeout(15000);
+                          connection.setReadTimeout(30000);
+
+                          JSONObject request = new JSONObject();
+                          request.put("message", command);
+
+                          try (OutputStream os =
+                                       connection.getOutputStream()) {
+
+                              byte[] input =
+                                      request.toString()
+                                              .getBytes(
+                                                  StandardCharsets.UTF_8
+                                              );
+
+                              os.write(input);
+                          }
+
+                          int responseCode =
+                                  connection.getResponseCode();
+
+                          if (responseCode >= 200 &&
+                              responseCode < 300) {
+
+                              BufferedReader reader =
+                                      new BufferedReader(
+                                          new InputStreamReader(
+                                              connection.getInputStream(),
+                                              StandardCharsets.UTF_8
+                                          )
+                                      );
+
+                              StringBuilder response =
+                                      new StringBuilder();
+
+                              String line;
+
+                              while ((line =
+                                      reader.readLine()) != null) {
+
+                                  response.append(line);
+                              }
+
+                              reader.close();
+
+                              JSONObject json =
+                                      new JSONObject(
+                                          response.toString()
+                                      );
+
+                              String reply =
+                                      json.optString(
+                                          "reply",
+                                          "મને જવાબ મળ્યો નથી."
+                                      );
+
+                              mainHandler.post(
+                                  () -> speak(reply)
+                              );
+
+                          } else {
+
+                              mainHandler.post(
+                                  () -> speak(
+                                      "Jarvis server સાથે જોડાઈ શક્યો નથી."
+                                  )
+                              );
+                          }
+
+                      } catch (Exception e) {
+
+                          mainHandler.post(
+                              () -> speak(
+                                  "AI સાથે connectionમાં સમસ્યા આવી."
+                              )
+                          );
+
+                      } finally {
+
+                          if (connection != null) {
+                              connection.disconnect();
+                          }
+                      }
+                  });
               }
 
               @Override
@@ -321,7 +423,7 @@ jobs:
                       if (results != null &&
                           !results.isEmpty()) {
 
-                          speak(reply(results.get(0)));
+                          askJarvis(results.get(0));
                       }
                   }
               }
@@ -333,6 +435,8 @@ jobs:
                       tts.stop();
                       tts.shutdown();
                   }
+
+                  executor.shutdownNow();
 
                   super.onDestroy();
               }
