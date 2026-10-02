@@ -31,7 +31,6 @@ jobs:
           set -e
 
           mkdir -p app/src/main/java/com/mankajithakor14/jarvis
-          mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
 
           cat > settings.gradle <<'EOF'
@@ -51,7 +50,7 @@ jobs:
               }
           }
 
-          rootProject.name = "JarvisAI"
+          rootProject.name = "Jarvis"
           include(":app")
           EOF
 
@@ -72,7 +71,7 @@ jobs:
 
               defaultConfig {
                   applicationId 'com.mankajithakor14.jarvis'
-                  minSdk 24
+                  minSdk 23
                   targetSdk 35
                   versionCode 1
                   versionName '1.0'
@@ -80,20 +79,26 @@ jobs:
           }
           EOF
 
+          cat > app/src/main/res/values/strings.xml <<'EOF'
+          <resources>
+              <string name="app_name">Jarvis AI</string>
+          </resources>
+          EOF
+
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
               <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
 
               <application
-                  android:theme="@style/AppTheme"
-                  android:label="Jarvis AI"
                   android:allowBackup="true"
-                  android:supportsRtl="true">
+                  android:label="@string/app_name"
+                  android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
                   <activity
                       android:name=".MainActivity"
+                      android:screenOrientation="portrait"
                       android:exported="true">
 
                       <intent-filter>
@@ -108,72 +113,26 @@ jobs:
           </manifest>
           EOF
 
-          cat > app/src/main/res/values/styles.xml <<'EOF'
-          <resources>
-
-              <style name="AppTheme"
-                  parent="@android:style/Theme.Material.Light.NoActionBar">
-
-                  <item name="android:fontFamily">sans</item>
-                  <item name="android:windowLightStatusBar">true</item>
-
-              </style>
-
-          </resources>
-          EOF
-
-          cat > app/src/main/res/layout/activity_main.xml <<'EOF'
-          <LinearLayout
-              xmlns:android="http://schemas.android.com/apk/res/android"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:orientation="vertical"
-              android:gravity="center"
-              android:padding="24dp">
-
-              <TextView
-                  android:layout_width="wrap_content"
-                  android:layout_height="wrap_content"
-                  android:text="JARVIS AI"
-                  android:textSize="32sp"
-                  android:textStyle="bold"/>
-
-              <TextView
-                  android:id="@+id/status"
-                  android:layout_width="wrap_content"
-                  android:layout_height="wrap_content"
-                  android:layout_marginTop="20dp"
-                  android:text="Jarvis તૈયાર છે"
-                  android:textSize="18sp"/>
-
-              <Button
-                  android:id="@+id/speakButton"
-                  android:layout_width="wrap_content"
-                  android:layout_height="wrap_content"
-                  android:layout_marginTop="20dp"
-                  android:text="Speak to Jarvis"/>
-
-          </LinearLayout>
-          EOF
-
           cat > app/src/main/java/com/mankajithakor14/jarvis/MainActivity.java <<'EOF'
           package com.mankajithakor14.jarvis;
 
-          import android.Manifest;
           import android.app.Activity;
           import android.os.Bundle;
           import android.os.Handler;
           import android.os.Looper;
           import android.content.Intent;
-          import android.content.pm.PackageManager;
           import android.speech.RecognizerIntent;
           import android.speech.tts.TextToSpeech;
           import android.widget.Button;
+          import android.widget.LinearLayout;
           import android.widget.TextView;
+          import android.view.View;
+          import android.graphics.Color;
 
           import org.json.JSONObject;
 
           import java.io.BufferedReader;
+          import java.io.InputStream;
           import java.io.InputStreamReader;
           import java.io.OutputStream;
           import java.net.HttpURLConnection;
@@ -181,70 +140,102 @@ jobs:
           import java.nio.charset.StandardCharsets;
           import java.util.ArrayList;
           import java.util.Locale;
-          import java.util.concurrent.ExecutorService;
-          import java.util.concurrent.Executors;
 
           public class MainActivity extends Activity {
 
-              private TextView status;
+              private static final int VOICE_REQUEST = 1001;
+
+              private TextView statusText;
+              private TextView commandText;
               private TextToSpeech tts;
-
-              private static final int VOICE = 10;
-              private static final int RECORD_AUDIO = 20;
-
-              private static final String BACKEND_URL =
-                      "https://jarvis-ai-816k.vercel.app/api";
-
-              private final ExecutorService executor =
-                      Executors.newSingleThreadExecutor();
 
               private final Handler mainHandler =
                       new Handler(Looper.getMainLooper());
+
+              private static final String API_URL =
+                      "https://jarvis-ai-816k.vercel.app/api";
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
 
-                  setContentView(R.layout.activity_main);
+                  LinearLayout layout =
+                          new LinearLayout(this);
 
-                  status = findViewById(R.id.status);
-                  Button button = findViewById(R.id.speakButton);
+                  layout.setOrientation(
+                          LinearLayout.VERTICAL
+                  );
 
-                  tts = new TextToSpeech(this, result -> {
+                  layout.setPadding(
+                          40, 60, 40, 40
+                  );
 
-                      if (result == TextToSpeech.SUCCESS) {
+                  TextView title =
+                          new TextView(this);
 
-                          int languageResult =
-                                  tts.setLanguage(new Locale("gu", "IN"));
+                  title.setText("JARVIS AI");
+                  title.setTextSize(30);
+                  title.setTextColor(Color.BLACK);
 
-                          if (languageResult ==
-                                  TextToSpeech.LANG_MISSING_DATA ||
-                              languageResult ==
-                                  TextToSpeech.LANG_NOT_SUPPORTED) {
+                  layout.addView(title);
 
-                              status.setText(
-                                  "Gujarati voice available નથી"
-                              );
-                          }
-                      }
-                  });
+                  statusText =
+                          new TextView(this);
 
-                  if (checkSelfPermission(
-                          Manifest.permission.RECORD_AUDIO)
-                          != PackageManager.PERMISSION_GRANTED) {
+                  statusText.setText(
+                          "Jarvis તૈયાર છે."
+                  );
 
-                      requestPermissions(
-                          new String[]{
-                              Manifest.permission.RECORD_AUDIO
-                          },
-                          RECORD_AUDIO
-                      );
-                  }
+                  statusText.setTextSize(20);
 
-                  button.setOnClickListener(v -> listen());
+                  layout.addView(statusText);
+
+                  commandText =
+                          new TextView(this);
+
+                  commandText.setText(
+                          "તમારો અવાજ સાંભળવા માટે બટન દબાવો."
+                  );
+
+                  commandText.setTextSize(18);
+
+                  layout.addView(commandText);
+
+                  Button speakButton =
+                          new Button(this);
+
+                  speakButton.setText(
+                          "🎙 Speak to Jarvis"
+                  );
+
+                  layout.addView(speakButton);
+
+                  setContentView(layout);
+
+                  tts =
+                          new TextToSpeech(
+                                  this,
+                                  result -> {
+
+                                      if (result ==
+                                              TextToSpeech.SUCCESS) {
+
+                                          tts.setLanguage(
+                                              new Locale(
+                                                  "gu",
+                                                  "IN"
+                                              )
+                                          );
+                                      }
+                                  }
+                          );
+
+                  speakButton.setOnClickListener(
+                          v -> startVoiceRecognition()
+                  );
               }
 
-              private void listen() {
+              private void startVoiceRecognition() {
 
                   Intent intent =
                           new Intent(
@@ -252,13 +243,13 @@ jobs:
                           );
 
                   intent.putExtra(
-                      RecognizerIntent.EXTRA_LANGUAGE,
-                      "gu-IN"
+                      RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                      RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
                   );
 
                   intent.putExtra(
-                      RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                      RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                      RecognizerIntent.EXTRA_LANGUAGE,
+                      "gu-IN"
                   );
 
                   intent.putExtra(
@@ -267,224 +258,18 @@ jobs:
                   );
 
                   try {
-                      startActivityForResult(intent, VOICE);
+
+                      startActivityForResult(
+                          intent,
+                          VOICE_REQUEST
+                      );
+
                   } catch (Exception e) {
-                      status.setText(
-                          "Voice recognition available નથી"
+
+                      speak(
+                          "Voice recognition ચાલુ થઈ શક્યું નથી."
                       );
                   }
-              }
-
-              private void speak(String message) {
-
-                  status.setText(message);
-
-                  if (tts != null) {
-
-                      tts.speak(
-                          message,
-                          TextToSpeech.QUEUE_FLUSH,
-                          null,
-                          "jarvis"
-                      );
-                  }
-              }
-
-              private void askJarvis(String command) {
-
-                  status.setText("Jarvis વિચારી રહ્યું છે...");
-
-                  executor.execute(() -> {
-
-                      HttpURLConnection connection = null;
-
-                      try {
-                          URL url = new URL(BACKEND_URL);
-
-                          connection =
-                                  (HttpURLConnection)
-                                  url.openConnection();
-
-                          connection.setRequestMethod("POST");
-
-                          connection.setRequestProperty(
-                                  "Content-Type",
-                                  "application/json; charset=UTF-8"
-                          );
-
-                          connection.setDoOutput(true);
-                          connection.setConnectTimeout(15000);
-                          connection.setReadTimeout(30000);
-
-                          JSONObject request = new JSONObject();
-                          request.put("message", command);
-
-                          try (OutputStream os =
-                                       connection.getOutputStream()) {
-
-                              byte[] input =
-                                      request.toString()
-                                              .getBytes(
-                                                  StandardCharsets.UTF_8
-                                              );
-
-                              os.write(input);
-                          }
-
-                          int responseCode =
-                                  connection.getResponseCode();
-
-                          if (responseCode >= 200 &&
-                              responseCode < 300) {
-
-                              BufferedReader reader =
-                                      new BufferedReader(
-                                          new InputStreamReader(
-                                              connection.getInputStream(),
-                                              StandardCharsets.UTF_8
-                                          )
-                                      );
-
-                              StringBuilder response =
-                                      new StringBuilder();
-
-                              String line;
-
-                              while ((line =
-                                      reader.readLine()) != null) {
-
-                                  response.append(line);
-                              }
-
-                              reader.close();
-
-                              JSONObject json =
-                                      new JSONObject(
-                                          response.toString()
-                                      );
-
-                              String reply =
-                                      json.optString(
-                                          "reply",
-                                          "મને જવાબ મળ્યો નથી."
-                                      );
-
-                              mainHandler.post(
-                                  () -> speak(reply)
-                              );
-
-} else {
-
-    String errorBody = "";
-
-    try {
-        java.io.InputStream errorStream =
-                connection.getErrorStream();
-
-        if (errorStream != null) {
-            BufferedReader errorReader =
-                    new BufferedReader(
-                        new InputStreamReader(
-                            errorStream,
-                            StandardCharsets.UTF_8
-                        )
-                    );
-
-            StringBuilder errorResponse =
-                    new StringBuilder();
-
-            String errorLine;
-
-            while ((errorLine =
-                    errorReader.readLine()) != null) {
-                errorResponse.append(errorLine);
-            }
-
-            errorReader.close();
-            errorBody = errorResponse.toString();
-        }
-
-    } catch (Exception ignored) {
-    }
-
-    final String finalError = errorBody;
-
-    mainHandler.post(() -> {
-
-        try {
-
-            JSONObject errorJson =
-                    new JSONObject(finalError);
-
-            String details =
-                    "Unknown server error";
-
-            Object detailsObject =
-                    errorJson.opt("details");
-
-            if (detailsObject instanceof JSONObject) {
-
-                JSONObject detailsJson =
-                        (JSONObject) detailsObject;
-
-                JSONObject openAiError =
-                        detailsJson.optJSONObject("error");
-
-                if (openAiError != null) {
-
-                    details =
-                            openAiError.optString(
-                                "message",
-                                details
-                            );
-
-                } else {
-
-                    details =
-                            detailsJson.toString();
-                }
-
-            } else {
-
-                details =
-                    errorJson.optString(
-                        "error",
-                        details
-                    );
-            }
-
-            speak(
-                "Server error "
-                + responseCode
-                + ": "
-                + details
-            );
-
-        } catch (Exception parseError) {
-
-            speak(
-                "Server error "
-                + responseCode
-            );
-        }
-    });
-}
-
-                      } catch (Exception e) {
-
-                          mainHandler.post(
-                              () -> speak(
-                                  "AI સાથે connectionમાં સમસ્યા આવી."
-                              )
-                          );
-
-                      } finally {
-
-                          if (connection != null) {
-                              connection.disconnect();
-                          }
-                      }
-                  });
               }
 
               @Override
@@ -494,48 +279,24 @@ jobs:
                       Intent data) {
 
                   super.onActivityResult(
-                      requestCode,
-                      resultCode,
-                      data
+                          requestCode,
+                          resultCode,
+                          data
                   );
 
-                  if (requestCode == VOICE &&
-                      resultCode == RESULT_OK &&
+                  if (requestCode ==
+                          VOICE_REQUEST &&
+                      resultCode ==
+                          RESULT_OK &&
                       data != null) {
 
                       ArrayList<String> results =
-                          data.getStringArrayListExtra(
-                              RecognizerIntent.EXTRA_RESULTS
-                          );
+                              data.getStringArrayListExtra(
+                                  RecognizerIntent.EXTRA_RESULTS
+                              );
 
                       if (results != null &&
                           !results.isEmpty()) {
 
-                          askJarvis(results.get(0));
-                      }
-                  }
-              }
-
-              @Override
-              protected void onDestroy() {
-
-                  if (tts != null) {
-                      tts.stop();
-                      tts.shutdown();
-                  }
-
-                  executor.shutdownNow();
-
-                  super.onDestroy();
-              }
-          }
-          EOF
-
-      - name: Build APK
-        run: gradle :app:assembleDebug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Jarvis-AI
-          path: app/build/outputs/apk/debug/app-debug.apk
+                          String command =
+                                  results.get(0
