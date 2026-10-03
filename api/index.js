@@ -1,88 +1,108 @@
 export default async function handler(req, res) {
-  // Only POST requests
   if (req.method !== "POST") {
     return res.status(405).json({
-      error: "Only POST is allowed"
+      error: "Method not allowed"
     });
   }
 
   try {
-    // Get user message
-    const message = req.body?.message;
+    const { message, history = [] } = req.body || {};
 
-    if (
-      typeof message !== "string" ||
-      message.trim().length === 0
-    ) {
+    if (!message || typeof message !== "string") {
       return res.status(400).json({
         error: "Message is required"
       });
     }
 
-    // Check API key
     const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
       return res.status(500).json({
-        error: "OPENAI_API_KEY is missing in Vercel"
+        error: "OPENAI_API_KEY is not configured"
       });
     }
 
-    // Send message to AI
+    const messages = [
+      {
+        role: "system",
+        content: `
+You are JARVIS, a personal AI assistant.
+
+Understand Gujarati, Hindi, Hinglish and English.
+
+Your job:
+1. Understand what the user actually wants.
+2. Answer normal questions naturally.
+3. Keep conversation context.
+4. Give useful step-by-step instructions when needed.
+5. Never answer with the same fixed response to every question.
+6. If the user asks about coding, help with code.
+7. If the user asks about markets, explain the analysis clearly and mention that market information can change.
+8. If the user gives a phone/app command, identify the intended action clearly.
+9. If you cannot perform an action directly, explain what is required instead of pretending it was done.
+10. Reply in the same language/style the user uses whenever practical.
+
+Be concise but useful.
+        `
+      },
+      ...Array.isArray(history)
+        ? history
+            .filter(
+              x =>
+                x &&
+                (x.role === "user" || x.role === "assistant") &&
+                typeof x.content === "string"
+            )
+            .slice(-12)
+        : [],
+      {
+        role: "user",
+        content: message.trim()
+      }
+    ];
+
     const response = await fetch(
-      "https://api.openai.com/v1/responses",
+      "https://api.openai.com/v1/chat/completions",
       {
         method: "POST",
-
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`
+          Authorization: `Bearer ${apiKey}`
         },
-
         body: JSON.stringify({
-          model: "gpt-5",
-          instructions:
-            "તમે Jarvis નામનો વ્યક્તિગત AI assistant છો. " +
-            "વપરાશકર્તા સાથે મુખ્યત્વે સરળ ગુજરાતી ભાષામાં વાત કરો. " +
-            "વપરાશકર્તા ગુજરાતી બોલે તો ગુજરાતી જવાબ આપો. " +
-            "જવાબ ટૂંકો, સ્પષ્ટ અને મદદરૂપ આપો.",
-
-          input: message,
-
-          max_output_tokens: 500
+          model: "gpt-4o-mini",
+          messages,
+          temperature: 0.7,
+          max_tokens: 800
         })
       }
     );
 
     const data = await response.json();
 
-    // OpenAI error
     if (!response.ok) {
-      console.error(
-        "OpenAI Error:",
-        JSON.stringify(data)
-      );
-
-      return res.status(502).json({
-        error: "AI service error"
+      return res.status(response.status).json({
+        error:
+          data?.error?.message ||
+          "AI request failed"
       });
     }
 
-    // AI reply
     const reply =
-      data.output_text ||
-      "મને AI તરફથી જવાબ મળ્યો નથી.";
+      data?.choices?.[0]?.message?.content?.trim();
+
+    if (!reply) {
+      return res.status(502).json({
+        error: "Empty AI response"
+      });
+    }
 
     return res.status(200).json({
       reply
     });
 
   } catch (error) {
-
-    console.error(
-      "Jarvis Server Error:",
-      error
-    );
+    console.error("JARVIS ERROR:", error);
 
     return res.status(500).json({
       error: "Jarvis server error"
