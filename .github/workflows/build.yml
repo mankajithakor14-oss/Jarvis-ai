@@ -26,14 +26,19 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      # -----------------------------
-      # Android project
-      # -----------------------------
+      # =============================
+      # Android folders
+      # =============================
 
-      - name: Create Android folders
+      - name: Create folders
         run: |
           mkdir -p app/src/main/java/com/mankajithakor14/jarvis
           mkdir -p app/src/main/res/values
+          mkdir -p api
+
+      # =============================
+      # Settings
+      # =============================
 
       - name: Create settings.gradle
         run: |
@@ -59,13 +64,21 @@ jobs:
           include(":app")
           EOF
 
-      - name: Create root build.gradle
+      # =============================
+      # Root Gradle
+      # =============================
+
+      - name: Create build.gradle
         run: |
           cat > build.gradle <<'EOF'
           plugins {
               id 'com.android.application' version '8.7.3' apply false
           }
           EOF
+
+      # =============================
+      # App Gradle
+      # =============================
 
       - name: Create app build.gradle
         run: |
@@ -82,12 +95,15 @@ jobs:
                   applicationId 'com.mankajithakor14.jarvis'
                   minSdk 23
                   targetSdk 35
-
                   versionCode 1
                   versionName "1.0"
               }
           }
           EOF
+
+      # =============================
+      # Strings
+      # =============================
 
       - name: Create strings.xml
         run: |
@@ -97,9 +113,9 @@ jobs:
           </resources>
           EOF
 
-      # -----------------------------
+      # =============================
       # Android Manifest
-      # -----------------------------
+      # =============================
 
       - name: Create AndroidManifest.xml
         run: |
@@ -131,9 +147,9 @@ jobs:
           </manifest>
           EOF
 
-      # -----------------------------
+      # =============================
       # MainActivity
-      # -----------------------------
+      # =============================
 
       - name: Create MainActivity.java
         run: |
@@ -182,20 +198,13 @@ jobs:
                   super.onCreate(savedInstanceState);
 
                   buildInterface();
-
                   setupTTS();
-
                   requestAudioPermission();
               }
 
-              // -----------------------------------------
-              // UI
-              // -----------------------------------------
-
               private void buildInterface() {
 
-                  LinearLayout root =
-                          new LinearLayout(this);
+                  LinearLayout root = new LinearLayout(this);
 
                   root.setOrientation(
                           LinearLayout.VERTICAL
@@ -208,21 +217,15 @@ jobs:
                           30
                   );
 
-                  TextView title =
-                          new TextView(this);
+                  TextView title = new TextView(this);
 
                   title.setText("JARVIS AI");
-
                   title.setTextSize(30);
-
-                  title.setGravity(
-                          Gravity.CENTER
-                  );
+                  title.setGravity(Gravity.CENTER);
 
                   root.addView(title);
 
-                  statusText =
-                          new TextView(this);
+                  statusText = new TextView(this);
 
                   statusText.setText(
                           "Jarvis તૈયાર છે."
@@ -239,14 +242,12 @@ jobs:
 
                   root.addView(statusText);
 
-                  ScrollView scroll =
-                          new ScrollView(this);
+                  ScrollView scroll = new ScrollView(this);
 
-                  conversationText =
-                          new TextView(this);
+                  conversationText = new TextView(this);
 
                   conversationText.setText(
-                          "🎙️ નીચેનું button દબાવીને ગુજરાતી બોલો."
+                          "🎙️ Speak to Jarvis દબાવો."
                   );
 
                   conversationText.setTextSize(18);
@@ -258,11 +259,9 @@ jobs:
                           20
                   );
 
-                  scroll.addView(
-                          conversationText
-                  );
+                  scroll.addView(conversationText);
 
-                  LinearLayout.LayoutParams scrollParams =
+                  LinearLayout.LayoutParams params =
                           new LinearLayout.LayoutParams(
                                   LinearLayout.LayoutParams.MATCH_PARENT,
                                   0,
@@ -271,7 +270,7 @@ jobs:
 
                   root.addView(
                           scroll,
-                          scrollParams
+                          params
                   );
 
                   Button speakButton =
@@ -283,9 +282,7 @@ jobs:
 
                   speakButton.setTextSize(18);
 
-                  root.addView(
-                          speakButton
-                  );
+                  root.addView(speakButton);
 
                   speakButton.setOnClickListener(
                           v -> startVoiceRecognition()
@@ -294,40 +291,35 @@ jobs:
                   setContentView(root);
               }
 
-              // -----------------------------------------
-              // Text To Speech
-              // -----------------------------------------
-
               private void setupTTS() {
 
-                  tts =
-                          new TextToSpeech(
-                                  this,
-                                  result -> {
+                  tts = new TextToSpeech(
+                          this,
+                          result -> {
 
-                                      if (result ==
-                                              TextToSpeech.SUCCESS) {
+                              if (result ==
+                                      TextToSpeech.SUCCESS) {
 
-                                          int languageResult =
-                                                  tts.setLanguage(
-                                                          new Locale(
-                                                                  "gu",
-                                                                  "IN"
-                                                          )
-                                                  );
+                                  int languageResult =
+                                          tts.setLanguage(
+                                                  new Locale(
+                                                          "gu",
+                                                          "IN"
+                                                  )
+                                          );
 
-                                          if (languageResult ==
-                                                  TextToSpeech.LANG_MISSING_DATA ||
-                                              languageResult ==
-                                                  TextToSpeech.LANG_NOT_SUPPORTED) {
+                                  if (languageResult ==
+                                          TextToSpeech.LANG_MISSING_DATA ||
+                                      languageResult ==
+                                          TextToSpeech.LANG_NOT_SUPPORTED) {
 
-                                              tts.setLanguage(
-                                                      Locale.US
-                                              );
-                                          }
-                                      }
+                                      tts.setLanguage(
+                                              Locale.US
+                                      );
                                   }
-                          );
+                              }
+                          }
+                  );
               }
 
               private void speak(String text) {
@@ -342,10 +334,6 @@ jobs:
                       );
                   }
               }
-
-              // -----------------------------------------
-              // Permission
-              // -----------------------------------------
 
               private void requestAudioPermission() {
 
@@ -364,10 +352,6 @@ jobs:
                       }
                   }
               }
-
-              // -----------------------------------------
-              // Voice Recognition
-              // -----------------------------------------
 
               private void startVoiceRecognition() {
 
@@ -412,16 +396,8 @@ jobs:
                       statusText.setText(
                               "Voice recognition ઉપલબ્ધ નથી."
                       );
-
-                      speak(
-                              "Voice recognition ચાલુ થઈ શક્યું નથી."
-                      );
                   }
               }
-
-              // -----------------------------------------
-              // Voice Result
-              // -----------------------------------------
 
               @Override
               protected void onActivityResult(
@@ -472,10 +448,6 @@ jobs:
                   sendToJarvis(command);
               }
 
-              // -----------------------------------------
-              // Send command to AI
-              // -----------------------------------------
-
               private void sendToJarvis(
                       String command
               ) {
@@ -503,7 +475,7 @@ jobs:
 
                           connection.setRequestProperty(
                                   "Content-Type",
-                                  "application/json"
+                                  "application/json; charset=UTF-8"
                           );
 
                           connection.setRequestProperty(
@@ -511,9 +483,15 @@ jobs:
                                   "application/json"
                           );
 
-                          connection.setDoOutput(
-                                  true
+                          connection.setConnectTimeout(
+                                  15000
                           );
+
+                          connection.setReadTimeout(
+                                  30000
+                          );
+
+                          connection.setDoOutput(true);
 
                           JSONObject request =
                                   new JSONObject();
@@ -533,9 +511,7 @@ jobs:
                                   connection.getOutputStream();
 
                           output.write(body);
-
                           output.flush();
-
                           output.close();
 
                           int responseCode =
@@ -565,7 +541,7 @@ jobs:
                                       );
                           }
 
-                          StringBuilder responseText =
+                          StringBuilder result =
                                   new StringBuilder();
 
                           String line;
@@ -575,15 +551,13 @@ jobs:
                                           != null
                           ) {
 
-                              responseText.append(
-                                      line
-                              );
+                              result.append(line);
                           }
 
                           reader.close();
 
                           String raw =
-                                  responseText.toString();
+                                  result.toString();
 
                           JSONObject response =
                                   new JSONObject(raw);
@@ -591,7 +565,10 @@ jobs:
                           String reply =
                                   response.optString(
                                           "reply",
-                                          "Jarvis ને જવાબ મળ્યો નથી."
+                                          response.optString(
+                                                  "error",
+                                                  "Jarvis ને જવાબ મળ્યો નથી."
+                                          )
                                   );
 
                           runOnUiThread(() -> {
@@ -612,14 +589,10 @@ jobs:
                           runOnUiThread(() -> {
 
                               statusText.setText(
-                                      "❌ Connection error"
+                                      "❌ Server connection error"
                               );
 
                               showJarvisMessage(
-                                      "Jarvis server સાથે connection થઈ શક્યું નથી."
-                              );
-
-                              speak(
                                       "Jarvis server સાથે connection થઈ શક્યું નથી."
                               );
                           });
@@ -627,17 +600,12 @@ jobs:
                       } finally {
 
                           if (connection != null) {
-
                               connection.disconnect();
                           }
                       }
 
                   }).start();
               }
-
-              // -----------------------------------------
-              // Chat UI
-              // -----------------------------------------
 
               private void showUserMessage(
                       String message
@@ -659,17 +627,12 @@ jobs:
                   );
               }
 
-              // -----------------------------------------
-              // Cleanup
-              // -----------------------------------------
-
               @Override
               protected void onDestroy() {
 
                   if (tts != null) {
 
                       tts.stop();
-
                       tts.shutdown();
                   }
 
@@ -678,14 +641,12 @@ jobs:
           }
           EOF
 
-      # -----------------------------
+      # =============================
       # Backend API
-      # -----------------------------
+      # =============================
 
       - name: Create API
         run: |
-          mkdir -p api
-
           cat > api/index.js <<'EOF'
           export default async function handler(req, res) {
 
@@ -697,12 +658,14 @@ jobs:
 
             try {
 
-              const message = req.body?.message;
+              const body = req.body || {};
 
-              if (
-                typeof message !== "string" ||
-                message.trim().length === 0
-              ) {
+              const message =
+                typeof body.message === "string"
+                  ? body.message.trim()
+                  : "";
+
+              if (!message) {
                 return res.status(400).json({
                   error: "Message is required"
                 });
@@ -734,34 +697,35 @@ jobs:
 
                     body: JSON.stringify({
 
-                      model: "gpt-5.6-luna",
+                      model: "gpt-6-luna",
 
-                      instructions:
-                        `
-                        તમે Jarvis નામનો વ્યક્તિગત AI assistant છો.
+                      instructions: `
+          You are JARVIS, a personal AI assistant.
 
-                        મુખ્ય ભાષા:
-                        ગુજરાતી.
+          Understand Gujarati, Hindi, Hinglish and English.
 
-                        વપરાશકર્તા ગુજરાતી બોલે તો
-                        ગુજરાતી જવાબ આપો.
+          Reply mainly in the same language used by the user.
 
-                        વપરાશકર્તા હિન્દી અથવા English
-                        બોલે તો જરૂર પ્રમાણે એ ભાષામાં
-                        જવાબ આપો.
+          Understand the actual question instead of using
+          fixed answers.
 
-                        જવાબ સરળ, ટૂંકો અને સ્પષ્ટ રાખો.
+          Give clear and useful answers.
 
-                        તમે હાલમાં માત્ર વાતચીત અને
-                        સામાન્ય મદદ માટે જવાબ આપો છો.
+          For coding questions, provide practical coding help.
 
-                        કોઈ phone action અથવા sensitive
-                        action પોતે થયાનું ખોટું ન કહો.
-                        `,
+          For market questions, explain the analysis clearly
+          and do not claim live data unless live data is actually
+          available.
+
+          For phone actions, never claim an action was completed
+          unless the Android app actually performed it.
+
+          Be concise but helpful.
+                      `,
 
                       input: message,
 
-                      max_output_tokens: 600
+                      max_output_tokens: 800
                     })
                   }
                 );
@@ -772,49 +736,57 @@ jobs:
               if (!response.ok) {
 
                 console.error(
-                  "OpenAI Error:",
+                  "OpenAI API ERROR:",
                   JSON.stringify(data)
                 );
 
                 return res.status(502).json({
                   error:
-                    "AI service error"
+                    data?.error?.message ||
+                    "OpenAI API error"
                 });
               }
 
               const reply =
-                data.output_text ||
-                "મને AI તરફથી જવાબ મળ્યો નથી.";
+                typeof data.output_text === "string" &&
+                data.output_text.trim().length > 0
+                  ? data.output_text.trim()
+                  : "મને AI તરફથી જવાબ મળ્યો નથી.";
 
               return res.status(200).json({
-                reply
+                reply: reply
               });
 
             } catch (error) {
 
               console.error(
-                "Jarvis Server Error:",
+                "JARVIS SERVER ERROR:",
                 error
               );
 
               return res.status(500).json({
                 error:
+                  error?.message ||
                   "Jarvis server error"
               });
             }
           }
           EOF
 
-      # -----------------------------
-      # Build APK
-      # -----------------------------
+      # =============================
+      # Build
+      # =============================
 
       - name: Build Debug APK
         run: |
           gradle --no-daemon assembleDebug
 
+      # =============================
+      # APK Artifact
+      # =============================
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Jarvis-AI-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk  
